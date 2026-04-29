@@ -4,8 +4,8 @@
 #include <vector>
 #include <memory>
 
-#include "cminus/common/Token.h"
-#include "cminus/parser/AST.h"
+#include "c--/common/Token.h"
+#include "c--/parser/AST.h"
 
 namespace cminus {
 

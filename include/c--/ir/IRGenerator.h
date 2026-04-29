@@ -1,14 +1,13 @@
 #pragma once
 
-#include <string>
-
 #include "c--/common/Result.h"
+#include "c--/parser/AST.h"
 
 namespace cminus {
 
-class Lexer {
+class IRGenerator {
 public:
-    LexResult tokenize(const std::string& source);
+    IRResult generate(const ASTNode* root);
 };
 
 } // namespace cminus

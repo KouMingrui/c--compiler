@@ -4,12 +4,12 @@
 #include <iostream>
 #include <string>
 
-#include "cminus/common/Config.h"
-#include "cminus/common/FileUtil.h"
-#include "cminus/common/Result.h"
-#include "cminus/lexer/Lexer.h"
-#include "cminus/parser/Parser.h"
-#include "cminus/ir/IRGenerator.h"
+#include "c--/common/Config.h"
+#include "c--/common/FileUtil.h"
+#include "c--/common/Result.h"
+#include "c--/lexer/lexer.h"
+#include "c--/parser/parser.h"
+#include "c--/ir/IRGenerator.h"
 
 using namespace cminus;
 

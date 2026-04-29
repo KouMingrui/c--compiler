@@ -1,4 +1,4 @@
-// include/cminus/parser/AST.h
+// include/c--/parser/AST.h
 #pragma once
 
 #include <string>

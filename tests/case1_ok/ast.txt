@@ -1,0 +1,6 @@
+CompUnit
+  FuncDef(main) [1:5]
+    FuncType(int) [1:1]
+    Block [1:12]
+      ReturnStmt [2:3]
+        IntLiteral(0) [2:10]
