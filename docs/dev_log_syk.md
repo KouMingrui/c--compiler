@@ -20,12 +20,22 @@
 - 新增 `docs/AST_SPEC.md`，用比较简洁的方式说明每种 AST 节点的 `name`、`value` 和 `children` 顺序。
 - 和中间代码生成部分对齐了最小开发范围：先支持变量声明、变量赋值、函数定义、代码块、表达式和 `return`，后续再补 `if/else`、函数调用和更完整的类型处理。
 
+词法分析部分做了迁移和适配：
+
+- 把之前实验三 `lab3` 中的自动机构造代码迁移到当前项目，新增 `include/c--/lexer/automata.h` 和 `src/lexer/automata.cpp`。
+- 保留了 NFA 构造、NFA 到 DFA 的确定化、DFA 最小化和最长匹配扫描这些核心逻辑。
+- 将原来直接 `printf` 输出 token 的方式，改成当前大作业框架需要的 `Lexer::tokenize(...) -> LexResult`。
+- 按大作业文档修正了关键字、运算符、界符的属性编号，并补充了 Parser 需要的 `grammar` 字段，例如 `IDN -> Ident`、`INT -> IntConst`、`FLOAT -> floatConst`。
+- 将浮点数规则调整为 `[0-9]+'.'[0-9]+`，和附录文法保持一致。
+- 额外支持了单独的 `!`，因为语法要求中有一元表达式 `!0`。
+- 用临时小程序做了词法冒烟测试，确认变量声明、浮点数、`if`、`return`、`!=`、`||`、`!` 等 token 可以正常识别。
+
 接下来我的重点是继续做语法分析器，先把作业要求里 SLR 语法分析相关的内容完成。
 
 Todo list：
 
 - [ ] 整理附录文法，把文档里的 EBNF 写法改成普通 BNF，例如把 `*`、`?`、`|` 展开成明确产生式。
-- [ ] 统一词法 token 和文法终结符的名字，例如 `IDN` 对应 `Ident`，`INT` 对应 `IntConst`。
+- [x] 统一词法 token 和文法终结符的名字，例如 `IDN` 对应 `Ident`，`INT` 对应 `IntConst`。
 - [ ] 在 `grammar/c--_bnf.txt` 中写入最终使用的 BNF 文法，作为 Parser 构造分析表的依据。
 - [ ] 设计产生式结构体，记录产生式编号、左部、右部，方便后面输出规约日志。
 - [ ] 实现 FIRST 集合计算。
