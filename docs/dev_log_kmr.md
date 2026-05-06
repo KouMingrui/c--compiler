@@ -35,11 +35,28 @@
 - 返回	create_ret	Value*	ReturnInst*	
 - 返回	create_void_ret	无	ReturnInst*	
 
-### 2026-05-01
+### 2026-05-06
 对于已经实现过的visitor函数根据AST节点的规定进行修改和补充
 - visit函数中的节点类型匹配按照AST_SPEC进行调整
 - [x] 修改visit中if/else语句使用的名字
-- [x] 完善visitFuncDef&visitCompUnit&visitBlock&visitReturnStmt&visitIntLiteral函数
-- [ ] 确定visitIdent函数中关于符号表存储的细节
+- [x] 完善visitFuncDef visitCompUnit visitBlock visitReturnStmt visitIntLiteral visitIdent visitVarDecl visitType函数
+- [x] 符号表栈管理
+- [x] 对于正确样例case1_ok/ast.txt进行测试 除了label_entry有问题其它和样例一致
+- [ ] 调用third-part已有函数得到的是label_entry而非entry输出偏差待解决
+- [x] visitBinaryExpr 二元表达式实现
+- [x] visitUnaryExpr 一元表达式实现
+- [x] visitAssignStmt 赋值语句实现
+- [x] visitLVal 左值空函数
+- [x] 第三方库可以声明float类型变量FloatType但是没有找到支持float类型运算和float常量定义的相关函数
 
-
+### 2026-05-07
+继续实现其它仅占位的visitor函数
+- [ ] visitConstDecl 常量声明
+- [ ] visitConstDef 常量定义
+- [ ] visitFloatLiteral 浮点数常量
+- [ ] visitUnaryExpr 一元表达式
+- [ ] visitCallExpr 函数调用
+- [ ] visitExprStmt 表达式语句
+- [ ] visitIfStmt 条件语句
+- [ ] visitParamList 参数列表
+- [ ] visitParam 参数
