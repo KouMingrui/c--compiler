@@ -45,101 +45,156 @@ namespace cminus
             }
             std::string generate(const ASTNode *root)
             {
+                // 调试部分
+                //  std::cerr << "=== DEBUG: Starting IR generation ===" << std::endl;
+                //  static int generateCount = 0;
+                //  generateCount++;
+                //  std::cerr << "DEBUG generate call #" << generateCount << std::endl;
+
                 if (!root)
                 {
+                    std::cerr << "ERROR: AST root is null" << std::endl;
                     throw std::runtime_error("AST root is null");
                 }
+                // 调试部分
+                // std::cerr << "DEBUG: Root node: name=" << root->name
+                //           << ", value=" << root->value
+                //           << ", children=" << root->children.size() << std::endl;
+
+                // 只调用一次reset()
                 reset(); // 重置状态支持多次调用
-                module = new Module("main");
-                builder = new IRBuilder(nullptr, module);
-                visit(root);
-                if (!module)
+
+                if (module)
                 {
-                    throw std::runtime_error("No module created during IR generation");
+                    // std::cerr << "WARNING: module already exists, deleting..." << std::endl;
+                    delete module;
+                    module = nullptr;
                 }
+
+                module = new Module("main");
+                // std::cerr << "DEBUG: Created module at " << module << std::endl;
+                builder = new IRBuilder(nullptr, module);
+
+                try
+                {
+                    visit(root);
+                }
+                catch (const std::exception &e)
+                {
+                    std::cerr << "ERROR in visit: " << e.what() << std::endl;
+                    throw;
+                }
+
                 std::string irText = module->print();
+                // std::cerr << "DEBUG: Raw IR text length: " << irText.length() << std::endl;
+
                 return irText;
             }
             void visit(const ASTNode *node)
             {
+                // 调试使用
+                //  static int callCount = 0;
+                //  callCount++;
+                //  std::cerr << "DEBUG visit #" << callCount << ": " << node->name
+                //            << " value=" << node->value << std::endl;
                 if (!node)
                     return;
-
                 if (node->name == "CompUnit")
                 {
+                    // std::cerr << "DEBUG: Visiting CompUnit with " << node->children.size()
+                    //           << " children" << std::endl;
                     visitCompUnit(node);
+                    return;
                 }
                 else if (node->name == "FuncDef")
                 {
                     visitFuncDef(node);
+                    return;
                 }
                 else if (node->name == "Type")
                 {
                     visitType(node);
+                    return;
                 }
                 else if (node->name == "Block")
                 {
                     visitBlock(node);
+                    return;
                 }
                 else if (node->name == "ReturnStmt")
                 {
                     visitReturnStmt(node);
+                    return;
                 }
                 else if (node->name == "IntLiteral")
                 {
                     visitIntLiteral(node);
+                    return;
                 }
                 else if (node->name == "BinaryExpr")
                 {
                     visitBinaryExpr(node);
+                    return;
                 }
                 else if (node->name == "VarDecl")
                 {
                     visitVarDecl(node);
+                    return;
                 }
                 else if (node->name == "ConstDecl")
                 {
                     visitConstDecl(node);
+                    return;
                 }
                 else if (node->name == "AssignStmt")
                 {
                     visitAssignStmt(node);
+                    return;
                 }
                 else if (node->name == "Ident")
                 {
                     visitIdent(node);
+                    return;
                 }
                 else if (node->name == "LVal")
                 {
                     visitLVal(node);
+                    return;
                 }
                 else if (node->name == "FloatLiteral")
                 {
                     visitFloatLiteral(node);
+                    return;
                 }
                 else if (node->name == "UnaryExpr")
                 {
                     visitUnaryExpr(node);
+                    return;
                 }
                 else if (node->name == "CallExpr")
                 {
                     visitCallExpr(node);
+                    return;
                 }
                 else if (node->name == "ExprStmt")
                 {
                     visitExprStmt(node);
+                    return;
                 }
                 else if (node->name == "IfStmt")
                 {
                     visitIfStmt(node);
+                    return;
                 }
                 else if (node->name == "ParamList")
                 {
                     visitParamList(node);
+                    return;
                 }
                 else if (node->name == "Param")
                 {
                     visitParam(node);
+                    return;
                 }
                 else
                 {
@@ -160,6 +215,11 @@ namespace cminus
             }
             void visitFuncDef(const ASTNode *node)
             {
+                // 调试使用
+                // static int funcDefCount = 0;
+                // funcDefCount++;
+                // std::cerr << "DEBUG visitFuncDef #" << funcDefCount
+                //           << ": " << node->value << std::endl;
                 // 提取函数名
                 std::string funcName = node->value; // 直接从节点value获取
 
@@ -210,12 +270,13 @@ namespace cminus
                 // 创建函数类型
                 FunctionType *funcType = FunctionType::get(returnType, paramTypes);
                 Function *func = Function::create(funcType, funcName, module);
-                module->add_function(func);
+                // module->add_function(func);
                 currentFunc = func;
 
                 // 创建入口基本块
-                BasicBlock *entryBB = BasicBlock::create(module, "entry", func);
-                func->add_basic_block(entryBB);
+                BasicBlock *entryBB = BasicBlock::create(module, "entry", func); // 输出是label_entry
+                // BasicBlock *entryBB = BasicBlock::create(module, "", func);// 输出是label
+                // func->add_basic_block(entryBB);
                 currentBB = entryBB;
                 builder->set_insert_point(entryBB);
 
@@ -228,13 +289,13 @@ namespace cminus
                 {
                     AllocaInst *paramAlloca = builder->create_alloca(paramTypes[i]);
 
-                    // Argument* 继承自 Value*，可以直接使用
+                    // Argument* 继承自 Value* 可以直接使用
                     Value *argValue = *argIt; // 这已经是Value*了
 
                     // 存储参数值到alloca空间
                     builder->create_store(argValue, paramAlloca);
 
-                    // 将alloca指令（指针）加入符号表，而不是参数值
+                    // 将alloca指令加入符号表，而不是参数值
                     addSymbol(paramNames[i], paramAlloca);
                 }
 
@@ -249,18 +310,18 @@ namespace cminus
                 }
 
                 // 如果基本块没有终止指令，添加默认返回
-                if (!currentBB->get_terminator())
-                {
-                    if (returnType->is_int32_type())
-                    {
-                        ConstantInt *zero = ConstantInt::get(0, module);
-                        builder->create_ret(zero);
-                    }
-                    else if (returnType->is_void_type())
-                    {
-                        builder->create_void_ret();
-                    }
-                }
+                // if (!currentBB->get_terminator())
+                // {
+                //     if (returnType->is_int32_type())
+                //     {
+                //         ConstantInt *zero = ConstantInt::get(0, module);
+                //         builder->create_ret(zero);
+                //     }
+                //     else if (returnType->is_void_type())
+                //     {
+                //         builder->create_void_ret();
+                //     }
+                // }
 
                 // 退出函数作用域
                 exitScope();
@@ -317,6 +378,7 @@ namespace cminus
                 // 处理二元表达式
                 std::string op = node->value;
 
+                // 检查子节点数量
                 if (node->children.size() < 2)
                 {
                     throw std::runtime_error("BinaryExpr must have 2 children");
@@ -335,27 +397,99 @@ namespace cminus
                     throw std::runtime_error("Missing operand in binary expression");
                 }
 
-                Value *result = nullptr;
+                // 检查类型：不支持float运算
+                if (left->get_type()->is_float_type() || right->get_type()->is_float_type())
+                {
+                    throw std::runtime_error("Float operations are not supported in this version");
+                }
 
-                if (op == "+")
+                // 只支持整数类型
+                if (!left->get_type()->is_integer_type() || !right->get_type()->is_integer_type())
                 {
-                    result = builder->create_iadd(left, right);
+                    throw std::runtime_error("Binary expression only supports integer types");
                 }
-                else if (op == "-")
+
+                Value *result = nullptr;
+                Type *type = left->get_type();
+
+                // 整数类型运算
+                if (type->is_integer_type())
                 {
-                    result = builder->create_isub(left, right);
+                    if (op == "+")
+                    {
+                        result = builder->create_iadd(left, right);
+                    }
+                    else if (op == "-")
+                    {
+                        result = builder->create_isub(left, right);
+                    }
+                    else if (op == "*")
+                    {
+                        result = builder->create_imul(left, right);
+                    }
+                    else if (op == "/")
+                    {
+                        result = builder->create_isdiv(left, right);
+                    }
+                    else if (op == "%")
+                    {
+                        result = builder->create_irem(left, right);
+                    }
+                    // 比较运算返回i1类型（布尔）
+                    else if (op == "==")
+                    {
+                        result = builder->create_icmp_eq(left, right);
+                    }
+                    else if (op == "!=")
+                    {
+                        result = builder->create_icmp_ne(left, right);
+                    }
+                    else if (op == "<")
+                    {
+                        result = builder->create_icmp_lt(left, right);
+                    }
+                    else if (op == "<=")
+                    {
+                        result = builder->create_icmp_le(left, right);
+                    }
+                    else if (op == ">")
+                    {
+                        result = builder->create_icmp_gt(left, right);
+                    }
+                    else if (op == ">=")
+                    {
+                        result = builder->create_icmp_ge(left, right);
+                    }
+                    // 逻辑运算（需要转换为布尔值）
+                    else if (op == "&&" || op == "||")
+                    {
+                        // 先将整数转换为布尔值
+                        Value *leftBool = builder->create_icmp_ne(left, ConstantInt::get(0, module));
+                        Value *rightBool = builder->create_icmp_ne(right, ConstantInt::get(0, module));
+
+                        if (op == "&&")
+                        {
+                            result = builder->create_iand(leftBool, rightBool);
+                        }
+                        else
+                        { // "||"
+                            result = builder->create_ior(leftBool, rightBool);
+                        }
+                    }
+                    else
+                    {
+                        throw std::runtime_error("Unsupported binary operator for integer: " + op);
+                    }
                 }
-                else if (op == "*")
+                // 浮点数类型运算（需要先实现FloatLiteral）
+                else if (type->is_float_type())
                 {
-                    result = builder->create_imul(left, right);
-                }
-                else if (op == "/")
-                {
-                    result = builder->create_isdiv(left, right);
+                    // 暂时不支持浮点数
+                    throw std::runtime_error("Float binary operations not implemented yet");
                 }
                 else
                 {
-                    throw std::runtime_error("Unsupported binary operator: " + op);
+                    throw std::runtime_error("Unsupported type for binary expression");
                 }
 
                 pushValue(result);
@@ -408,7 +542,8 @@ namespace cminus
                 }
 
                 // 先处理右表达式
-                visit(node->children[1].get());
+                const ASTNode *exprNode = node->children[1].get();
+                visit(exprNode);
                 Value *exprValue = popValue();
 
                 if (!exprValue)
@@ -425,12 +560,22 @@ namespace cminus
 
                 std::string varName = lvalNode->value;
                 Value *varAddr = lookupSymbol(varName);
-
                 if (!varAddr)
                 {
                     throw std::runtime_error("Undefined variable in assignment: " + varName);
                 }
+                // 类型检查
+                if (varAddr->get_type()->is_pointer_type())
+                {
+                    PointerType *ptrType = static_cast<PointerType *>(varAddr->get_type());
+                    Type *pointedType = ptrType->get_element_type();
 
+                    // 检查赋值类型是否匹配
+                    if (exprValue->get_type() != pointedType)
+                    {
+                        throw std::runtime_error("Type mismatch in assignment");
+                    }
+                }
                 // 存储值到变量
                 builder->create_store(exprValue, varAddr);
             }
@@ -444,18 +589,80 @@ namespace cminus
                 {
                     throw std::runtime_error("Undefined variable: " + varName);
                 }
-
-                // 将变量的地址指针压入值栈
-                // 这样在赋值语句中可以直接使用
-                pushValue(varAddr);
+                // 加载变量的值
+                Value *loadedValue = builder->create_load(varAddr);
+                pushValue(loadedValue);
             }
             void visitFloatLiteral(const ASTNode *node)
             {
-                // 处理浮点数文本
+                // 处理浮点数常量 不支持浮点数常量
+                throw std::runtime_error("Float literals are not supported in this version");
             }
             void visitUnaryExpr(const ASTNode *node)
             {
                 // 处理一元运算符
+                std::string op = node->value; // '+', '-', '!'
+
+                if (node->children.empty())
+                {
+                    throw std::runtime_error("UnaryExpr must have 1 child");
+                }
+
+                // 计算操作数
+                visit(node->children[0].get());
+                Value *operand = popValue();
+
+                if (!operand)
+                {
+                    throw std::runtime_error("Missing operand in unary expression");
+                }
+
+                // 检查类型：不支持float
+                if (operand->get_type()->is_float_type())
+                {
+                    throw std::runtime_error("Float operations are not supported in this version");
+                }
+                Value *result = nullptr;
+
+                if (op == "+")
+                {
+                    // 正号，直接返回操作数
+                    result = operand;
+                }
+                else if (op == "-")
+                {
+                    // 负号：0 - operand
+                    if (operand->get_type()->is_integer_type())
+                    {
+                        Value *zero = ConstantInt::get(0, module);
+                        result = builder->create_isub(zero, operand);
+                    }
+                    else
+                    {
+                        throw std::runtime_error("Unary minus only supports integer type");
+                    }
+                }
+                else if (op == "!")
+                {
+                    // 逻辑非：operand == 0 ? 1 : 0
+                    if (operand->get_type()->is_integer_type())
+                    {
+                        Value *zero = ConstantInt::get(0, module);
+                        Value *isZero = builder->create_icmp_eq(operand, zero);
+                        // 将i1转换为i32
+                        result = builder->create_zext(isZero, Type::get_int32_type(module));
+                    }
+                    else
+                    {
+                        throw std::runtime_error("Logical not only supports integer type");
+                    }
+                }
+                else
+                {
+                    throw std::runtime_error("Unsupported unary operator: " + op);
+                }
+
+                pushValue(result);
             }
             void visitCallExpr(const ASTNode *node)
             {
@@ -472,6 +679,10 @@ namespace cminus
             void visitParamList(const ASTNode *node)
             {
                 // 处理参数序列
+                for (auto &child : node->children)
+                {
+                    visit(child.get());
+                }
             }
             void visitParam(const ASTNode *node)
             {
@@ -499,6 +710,7 @@ namespace cminus
                 currentFunc = nullptr;
                 currentBB = nullptr;
                 symbolTableStack.clear();
+                valueStack.clear();
             }
             void enterScope()
             {
