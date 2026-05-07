@@ -51,12 +51,13 @@
 
 ### 2026-05-07
 继续实现其它仅占位的visitor函数
-- [ ] visitConstDecl 常量声明
-- [ ] visitConstDef 常量定义
-- [ ] visitFloatLiteral 浮点数常量
-- [ ] visitUnaryExpr 一元表达式
-- [ ] visitCallExpr 函数调用
-- [ ] visitExprStmt 表达式语句
-- [ ] visitIfStmt 条件语句
-- [ ] visitParamList 参数列表
-- [ ] visitParam 参数
+- [x] visitConstDecl 常量声明
+- [x] visitConstDef 常量定义
+- [x] visitFloatLiteral 浮点数常量(定义不支持)
+- [x] visitCallExpr 函数调用
+- [x] visitExprStmt 表达式语句
+- [x] visitIfStmt 条件语句
+- [x] visitParamList 参数列表
+- [x] visitParam 参数
+- [x] visitVarDef 变量定义(从visitVarDecl中分离)
+- [x] 对于float相关类型定义/声明/运算处增加类型检查
