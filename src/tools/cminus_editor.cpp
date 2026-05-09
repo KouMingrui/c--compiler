@@ -51,6 +51,13 @@ struct TokenSpan {
     std::string grammar;
 };
 
+struct ErrorSpan {
+    int line = 1;
+    int column = 1;
+    int length = 1;
+    std::string message;
+};
+
 struct AnalysisView {
     bool lexOk = false;
     bool parseOk = false;
@@ -59,6 +66,7 @@ struct AnalysisView {
     std::vector<std::string> tokenLines;
     std::vector<std::string> syntaxLines;
     std::vector<TokenSpan> spans;
+    std::vector<ErrorSpan> errors;
 };
 
 std::string readFile(const std::string& path) {
@@ -178,6 +186,52 @@ void appendWrappedLines(const std::string& text, std::vector<std::string>& lines
     }
 }
 
+bool parseErrorPosition(const std::string& line, int& errorLine, int& errorColumn) {
+    if (std::sscanf(line.c_str(), "Lexical error at line %d, column %d", &errorLine, &errorColumn) == 2) {
+        return true;
+    }
+    if (std::sscanf(line.c_str(), "Syntax error at line %d, column %d", &errorLine, &errorColumn) == 2) {
+        return true;
+    }
+    return false;
+}
+
+int tokenLengthAt(const std::vector<cminus::Token>& tokens, int line, int column) {
+    for (size_t i = 0; i < tokens.size(); i++) {
+        const cminus::Token& token = tokens[i];
+        if (token.type == cminus::TokenType::EndOfFile) {
+            continue;
+        }
+        if (token.line == line && token.column == column) {
+            return std::max(1, (int)token.lexeme.size());
+        }
+    }
+    return 1;
+}
+
+void addErrorSpansFromMessage(
+    AnalysisView& view,
+    const std::string& message,
+    const std::vector<cminus::Token>& tokens
+) {
+    std::istringstream input(message);
+    std::string line;
+    while (std::getline(input, line)) {
+        int errorLine = 0;
+        int errorColumn = 0;
+        if (!parseErrorPosition(line, errorLine, errorColumn)) {
+            continue;
+        }
+
+        ErrorSpan span;
+        span.line = errorLine;
+        span.column = errorColumn;
+        span.length = tokenLengthAt(tokens, errorLine, errorColumn);
+        span.message = line;
+        view.errors.push_back(span);
+    }
+}
+
 AnalysisView analyzeSource(const std::string& source) {
     AnalysisView view;
 
@@ -208,6 +262,7 @@ AnalysisView analyzeSource(const std::string& source) {
     }
 
     if (!lex.success) {
+        addErrorSpansFromMessage(view, lex.errorMessage, lex.tokens);
         view.syntaxLines.push_back("Parser skipped because lexer has errors.");
         appendWrappedLines(lex.errorMessage, view.syntaxLines);
         return view;
@@ -220,6 +275,7 @@ AnalysisView analyzeSource(const std::string& source) {
 
         if (!parsed.success) {
             view.parseError = parsed.errorMessage;
+            addErrorSpansFromMessage(view, parsed.errorMessage, lex.tokens);
             view.syntaxLines.push_back("Parse: ERROR");
             view.syntaxLines.push_back(parsed.errorMessage);
             return view;
@@ -411,6 +467,20 @@ private:
         return false;
     }
 
+    int errorIndexAtCursor() const {
+        int line = cursorLine + 1;
+        int column = cursorCol + 1;
+        for (size_t i = 0; i < analysis.errors.size(); i++) {
+            const ErrorSpan& error = analysis.errors[i];
+            int begin = error.column;
+            int end = error.column + std::max(1, error.length);
+            if (error.line == line && column >= begin && column <= end) {
+                return (int)i;
+            }
+        }
+        return -1;
+    }
+
     void clampCursor() {
         if (lines.empty()) {
             lines.push_back("");
@@ -531,12 +601,49 @@ private:
         markChanged();
     }
 
+    std::string leadingSpaces(const std::string& text) const {
+        std::string result;
+        for (size_t i = 0; i < text.size(); i++) {
+            if (text[i] != ' ' && text[i] != '\t') {
+                break;
+            }
+            result.push_back(text[i]);
+        }
+        return result;
+    }
+
+    std::string rtrim(const std::string& text) const {
+        size_t end = text.size();
+        while (end > 0 && (text[end - 1] == ' ' || text[end - 1] == '\t')) {
+            end--;
+        }
+        return text.substr(0, end);
+    }
+
+    std::string indentForNewline(const std::string& left, const std::string& right) const {
+        std::string indent = leadingSpaces(left);
+        std::string trimmedLeft = rtrim(left);
+
+        if (!trimmedLeft.empty() && trimmedLeft[trimmedLeft.size() - 1] == '{') {
+            indent += "  ";
+        }
+
+        if (!right.empty() && right[0] == '}' && indent.size() >= 2) {
+            indent.erase(indent.size() - 2);
+        }
+
+        return indent;
+    }
+
     void insertNewline() {
+        std::string left = lines[cursorLine].substr(0, cursorCol);
         std::string right = lines[cursorLine].substr(cursorCol);
-        lines[cursorLine].erase((size_t)cursorCol);
-        lines.insert(lines.begin() + cursorLine + 1, right);
+        std::string indent = indentForNewline(left, right);
+
+        lines[cursorLine] = left;
+        lines.insert(lines.begin() + cursorLine + 1, indent + right);
         cursorLine++;
-        cursorCol = 0;
+        cursorCol = (int)indent.size();
         markChanged();
     }
 
@@ -857,6 +964,8 @@ private:
         const std::string& line = lines[lineIndex];
         std::vector<int> colors(line.size(), COLOR_NORMAL_TEXT);
         std::vector<bool> selected(line.size(), false);
+        std::vector<bool> errorChars(line.size(), false);
+        std::vector<int> virtualErrorCols;
         int currentToken = selectedTokenIndex();
         for (size_t i = 0; i < analysis.spans.size(); i++) {
             const TokenSpan& span = analysis.spans[i];
@@ -872,6 +981,24 @@ private:
                 }
             }
         }
+        for (size_t i = 0; i < analysis.errors.size(); i++) {
+            const ErrorSpan& error = analysis.errors[i];
+            if (error.line != lineIndex + 1) {
+                continue;
+            }
+
+            int begin = std::max(0, error.column - 1);
+            int end = std::min((int)line.size(), begin + std::max(1, error.length));
+            if (begin >= (int)line.size()) {
+                virtualErrorCols.push_back(begin);
+                continue;
+            }
+
+            for (int pos = begin; pos < end; pos++) {
+                colors[pos] = COLOR_ERROR_TEXT;
+                errorChars[pos] = true;
+            }
+        }
 
         for (int i = 0; i < textWidth; i++) {
             int sourceCol = leftCol + i;
@@ -884,6 +1011,10 @@ private:
                 ch = ' ';
             }
             attron(COLOR_PAIR(colors[sourceCol]));
+            if (errorChars[sourceCol]) {
+                attron(A_UNDERLINE);
+                attron(A_BOLD);
+            }
             if (selected[sourceCol]) {
                 attron(A_REVERSE);
             }
@@ -891,7 +1022,25 @@ private:
             if (selected[sourceCol]) {
                 attroff(A_REVERSE);
             }
+            if (errorChars[sourceCol]) {
+                attroff(A_BOLD);
+                attroff(A_UNDERLINE);
+            }
             attroff(COLOR_PAIR(colors[sourceCol]));
+        }
+
+        for (size_t i = 0; i < virtualErrorCols.size(); i++) {
+            int sourceCol = virtualErrorCols[i];
+            if (sourceCol < leftCol || sourceCol >= leftCol + textWidth) {
+                continue;
+            }
+            attron(COLOR_PAIR(COLOR_ERROR_TEXT));
+            attron(A_BOLD);
+            attron(A_UNDERLINE);
+            mvaddch(screenY, textX + sourceCol - leftCol, '~');
+            attroff(A_UNDERLINE);
+            attroff(A_BOLD);
+            attroff(COLOR_PAIR(COLOR_ERROR_TEXT));
         }
     }
 
@@ -989,6 +1138,7 @@ private:
         drawListPane(topPaneH, rightX, bottomPaneH, rightW, parseTitle, analysis.syntaxLines, analysis.parseOk, parserScroll, activePane == PANE_PARSER, selectedToken);
 
         std::ostringstream status;
+        int currentError = errorIndexAtCursor();
         status << "Ln " << (cursorLine + 1) << ", Col " << (cursorCol + 1);
         if (activePane == PANE_TOKENS) {
             status << " | Focus: Tokens";
@@ -1001,7 +1151,15 @@ private:
             status << " | Token: " << analysis.spans[selectedToken].lexeme
                    << "/" << analysis.spans[selectedToken].grammar;
         }
-        status << " | " << message;
+        if (currentError >= 0 && currentError < (int)analysis.errors.size()) {
+            status << " | ERROR: " << analysis.errors[currentError].message;
+        } else if (!analysis.lexOk && !analysis.lexError.empty()) {
+            status << " | Lexical errors: " << analysis.errors.size();
+        } else if (!analysis.parseOk && !analysis.parseError.empty()) {
+            status << " | Syntax error";
+        } else {
+            status << " | " << message;
+        }
         drawText(statusY, 0, COLS, status.str(), COLOR_STATUS_TEXT, true);
 
         int cursorY = 1 + cursorLine - topLine;
