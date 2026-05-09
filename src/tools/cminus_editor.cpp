@@ -323,12 +323,13 @@ void initColors() {
 void enableTerminalMouse() {
     // ncurses on some macOS terminals enables only basic click reporting.
     // These xterm modes make click, drag and SGR mouse coordinates more likely to be sent.
-    std::printf("\033[?1000h\033[?1002h\033[?1006h");
+    // Bracketed paste lets us keep pasted code unchanged instead of auto-indenting every pasted newline.
+    std::printf("\033[?1000h\033[?1002h\033[?1006h\033[?2004h");
     std::fflush(stdout);
 }
 
 void disableTerminalMouse() {
-    std::printf("\033[?1006l\033[?1002l\033[?1000l");
+    std::printf("\033[?2004l\033[?1006l\033[?1002l\033[?1000l");
     std::fflush(stdout);
 }
 
@@ -515,6 +516,14 @@ private:
         return std::max(0, contentH - 2);
     }
 
+    int wheelStepForPane(ActivePane pane) const {
+        int visibleRows = visibleRowsForPane(pane);
+        if (pane == PANE_EDITOR) {
+            return std::max(6, visibleRows / 2);
+        }
+        return std::max(4, visibleRows / 2);
+    }
+
     int maxScrollForRows(const std::vector<std::string>& rows, int visibleRows) const {
         return std::max(0, (int)rows.size() - visibleRows);
     }
@@ -564,9 +573,15 @@ private:
             parserScroll += amount;
         } else {
             topLine += amount;
+            cursorLine += amount;
+            clampCursor();
         }
         clampPanelScrolls();
         topLine = clampInt(topLine, 0, std::max(0, (int)lines.size() - 1));
+    }
+
+    void scrollWheel(int direction) {
+        scrollActivePane(direction * wheelStepForPane(activePane));
     }
 
     void ensureCursorVisible(int editorHeight, int textWidth) {
@@ -645,6 +660,34 @@ private:
         cursorLine++;
         cursorCol = (int)indent.size();
         markChanged();
+    }
+
+    void insertRawChar(int ch) {
+        if (ch == '\r') {
+            return;
+        }
+
+        if (ch == '\n') {
+            std::string right = lines[cursorLine].substr(cursorCol);
+            lines[cursorLine].erase((size_t)cursorCol);
+            lines.insert(lines.begin() + cursorLine + 1, right);
+            cursorLine++;
+            cursorCol = 0;
+            return;
+        }
+
+        if (ch >= 32 && ch <= 126) {
+            lines[cursorLine].insert(lines[cursorLine].begin() + cursorCol, (char)ch);
+            cursorCol++;
+        }
+    }
+
+    void insertRawText(const std::string& text) {
+        for (size_t i = 0; i < text.size(); i++) {
+            insertRawChar((unsigned char)text[i]);
+        }
+        modified = true;
+        analyze();
     }
 
     void backspace() {
@@ -771,11 +814,11 @@ private:
         focusPaneByMouse(event.y, event.x);
 
         if ((event.bstate & BUTTON4_PRESSED) != 0) {
-            scrollActivePane(-3);
+            scrollWheel(-1);
             return;
         }
         if ((event.bstate & BUTTON5_PRESSED) != 0) {
-            scrollActivePane(3);
+            scrollWheel(1);
             return;
         }
 
@@ -793,9 +836,9 @@ private:
         focusPaneByMouse(y, x);
         if ((button & 64) != 0) {
             if ((button & 1) == 0) {
-                scrollActivePane(-3);
+                scrollWheel(-1);
             } else {
-                scrollActivePane(3);
+                scrollWheel(1);
             }
         } else {
             message = "Mouse focus changed. Wheel or [] scrolls the focused pane.";
@@ -811,11 +854,36 @@ private:
                 break;
             }
             seq.push_back((char)ch);
-            if (ch == 'M' || ch == 'm') {
+            if (ch == 'M' || ch == 'm' || ch == '~') {
                 break;
             }
         }
         timeout(-1);
+
+        if (seq == "[200~") {
+            std::string pasted;
+            std::string tail;
+            while (true) {
+                int ch = getch();
+                if (ch == ERR) {
+                    break;
+                }
+
+                tail.push_back((char)ch);
+                if (tail.size() > 6) {
+                    pasted.push_back(tail[0]);
+                    tail.erase(tail.begin());
+                }
+
+                if (tail == "\033[201~") {
+                    break;
+                }
+            }
+
+            insertRawText(pasted);
+            message = "Pasted text without auto-indenting pasted newlines.";
+            return true;
+        }
 
         if (seq.size() >= 6 && seq[0] == '[' && seq[1] == '<') {
             int button = 0;
@@ -1185,7 +1253,7 @@ int main(int argc, char** argv) {
     raw();
     noecho();
     keypad(stdscr, TRUE);
-    mousemask(ALL_MOUSE_EVENTS | REPORT_MOUSE_POSITION, NULL);
+    mousemask(ALL_MOUSE_EVENTS | REPORT_MOUSE_POSITION | BUTTON4_PRESSED | BUTTON5_PRESSED, NULL);
     mouseinterval(0);
     enableTerminalMouse();
     initColors();
