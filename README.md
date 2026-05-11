@@ -150,6 +150,16 @@ make run-editor FILE=tests/case1_ok/input.sy
 make clean-temp
 ```
 
+## 待解决 Todo
+
+- [ ] 补齐正式主程序依赖的工具函数实现：`parseArgs`、`stageToString`、`printHelp`、`readTextFile`、`writeTextFile`、`writeTokens`、`writeLines`、`writeASTFile`、`writeRunInfo` 等目前只有声明，导致 `src/main.cpp` 不能完整链接成正式编译器。
+- [ ] 在 `Makefile` 中增加正式编译器目标，例如 `compiler` 或 `cminus`，把 `src/main.cpp`、词法、语法、IR、公共工具和 `third_part/compiler_ir` 一起编译，形成一条命令跑完整流程。
+- [ ] 检查并统一最终输出格式，尤其是 `token.txt` 和 `reduce.txt`，确保格式符合大作业文档中的 token 二元属性输出和规约序列输出要求。
+- [ ] 修复 `third_part/compiler_ir/include/IRbuilder.h` 中 `create_iand`、`create_ior` 目前错误调用 `create_sdiv` 的问题，否则 `&&` 和 `||` 生成的 LLVM IR 语义不正确。
+- [ ] 明确 `float` 的支持范围。当前词法和语法支持 `float` / `floatConst`，但 `src/ir/IRGenerator.cpp` 中浮点常量、浮点变量初始化、浮点运算和浮点返回值会报错；如果老师测试包含浮点，需要继续补 IR 生成。
+- [ ] 修正 `tests/samples/*_ok.sy` 中与当前规则冲突的样例，例如关键字不区分大小写时，`CONST` 会被识别为 `const` 关键字，不能作为普通标识符。
+- [ ] 补充覆盖完整必做功能的回归测试：全局/局部变量、常量、函数参数、函数调用、赋值、一元/二元/复合表达式、比较、`&&` / `||`、`if/else`、词法错误、语法错误和 IR 生成错误。
+
 ## 注意事项
 
 - 不使用 Lex/Yacc、ANTLR 等自动生成工具。
