@@ -3,6 +3,7 @@
 #include <string>
 #include <vector>
 
+#include "c--/common/Config.h"
 #include "c--/common/Token.h"
 #include "c--/parser/AST.h"
 

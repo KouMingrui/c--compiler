@@ -13,6 +13,7 @@ LEXER_BIN := $(BUILD_DIR)/lexer_test
 PARSER_BIN := $(BUILD_DIR)/parser_test
 IR_BIN := $(BUILD_DIR)/ir_test
 EDITOR_BIN := $(BUILD_DIR)/cminus_editor
+COMPILER_BIN := $(BUILD_DIR)/c--compiler
 
 LEXER_SRCS := \
 	tests/drivers/lexer_main.cpp \
@@ -46,11 +47,28 @@ EDITOR_SRCS := \
 	src/lexer/automata.cpp \
 	src/parser/parser.cpp
 
+COMMON_SRCS := \
+	src/common/Config.cpp \
+	src/common/FileUtil.cpp \
+	src/common/Token.cpp \
+	src/parser/AST.cpp
+
+COMPILER_SRCS := \
+	src/main.cpp \
+	src/tools/cminus_editor.cpp \
+	src/lexer/lexer.cpp \
+	src/lexer/automata.cpp \
+	src/parser/parser.cpp \
+	src/ir/IRGenerator.cpp \
+	$(COMMON_SRCS) \
+	$(IR_LIB_SRCS)
+
 FILE ?= $(BUILD_DIR)/editor_buffer.sy
+OUTPUT ?=
 
-.PHONY: all lexer_test parser_test ir_test editor run-lexer run-parser run-ir run-editor clean-temp
+.PHONY: all lexer_test parser_test ir_test editor c--compiler run-lexer run-parser run-ir run-editor run-compiler clean-temp
 
-all: lexer_test parser_test ir_test editor
+all: lexer_test parser_test ir_test editor c--compiler
 
 $(BUILD_DIR):
 	mkdir -p $(BUILD_DIR)
@@ -63,6 +81,8 @@ ir_test: $(IR_BIN)
 
 editor: $(EDITOR_BIN)
 
+c--compiler: $(COMPILER_BIN)
+
 $(LEXER_BIN): $(LEXER_SRCS) | $(BUILD_DIR)
 	$(CXX) $(CXXFLAGS) $(LEXER_SRCS) -o $(LEXER_BIN)
 
@@ -74,6 +94,9 @@ $(IR_BIN): $(IR_SRCS) | $(BUILD_DIR)
 
 $(EDITOR_BIN): $(EDITOR_SRCS) | $(BUILD_DIR)
 	$(CXX) $(CXXFLAGS) $(EDITOR_SRCS) -lncurses -o $(EDITOR_BIN)
+
+$(COMPILER_BIN): $(COMPILER_SRCS) | $(BUILD_DIR)
+	$(CXX) $(CXXFLAGS) -DCMINUS_EDITOR_NO_MAIN $(COMPILER_SRCS) -lncurses -o $(COMPILER_BIN)
 
 run-lexer: $(LEXER_BIN)
 	$(LEXER_BIN) $(INPUT) $(TOKENS)
@@ -90,6 +113,9 @@ run-ir: $(IR_BIN)
 
 run-editor: $(EDITOR_BIN)
 	$(EDITOR_BIN) $(FILE)
+
+run-compiler: $(COMPILER_BIN)
+	$(COMPILER_BIN) $(INPUT) $(if $(OUTPUT),-o $(OUTPUT),)
 
 clean-temp:
 	rm -rf $(BUILD_DIR)

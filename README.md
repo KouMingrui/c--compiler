@@ -41,9 +41,52 @@ C-- 支持：
 - `error.txt`：错误信息。
 - `run_info.txt`：本次运行信息。
 
+## 完整工具使用
+
+现在项目可以编译成一个完整命令行工具：
+
+```bash
+make c--compiler
+```
+
+生成的程序是：
+
+```text
+.tmp_build/c--compiler
+```
+
+使用格式：
+
+```bash
+.tmp_build/c--compiler [lexer|parser|ir|ide|all] <file> [-o output_dir]
+```
+
+如果不写模式，默认执行完整流程，也就是词法分析、语法分析、中间代码生成三个阶段：
+
+```bash
+.tmp_build/c--compiler tests/case1_ok/input.sy
+```
+
+常用模式：
+
+```bash
+.tmp_build/c--compiler lexer tests/case1_ok/input.sy -o output/lexer_case
+.tmp_build/c--compiler parser tests/case1_ok/input.sy -o output/parser_case
+.tmp_build/c--compiler ir tests/case1_ok/input.sy -o output/ir_case
+.tmp_build/c--compiler ide tests/case1_ok/input.sy
+```
+
+说明：
+
+- `lexer`：只执行词法分析，输出 `token.txt`。
+- `parser`：执行词法分析和语法分析，输出 `token.txt`、`reduce.txt`、`ast.txt`。
+- `ir` / `all`：执行完整三阶段，输出 `token.txt`、`reduce.txt`、`ast.txt`、`output.ll`。
+- `ide`：打开命令行 C-- 编辑器，不生成输出目录。
+- `-o` 可以指定输出目录；如果不指定，会自动生成 `output/result_YYYYMMDD_HHMMSS`。
+
 ## 临时单阶段测试
 
-为了方便模块化开发，当前先提供一个临时 `Makefile`，分别测试词法、语法和 IR 三个阶段。后面三个阶段都完成后，再整理正式构建方式。
+为了方便模块化开发，当前仍然保留单阶段测试目标，可以分别测试词法、语法和 IR 三个阶段。
 
 ### 阶段输入约定
 
@@ -66,9 +109,10 @@ make lexer_test
 make parser_test
 make ir_test
 make editor
+make c--compiler
 ```
 
-也可以一次性编译三个临时测试程序：
+也可以一次性编译临时测试程序、编辑器和完整工具：
 
 ```bash
 make all
@@ -152,9 +196,9 @@ make clean-temp
 
 ## 待解决 Todo
 
-- [ ] 补齐正式主程序依赖的工具函数实现：`parseArgs`、`stageToString`、`printHelp`、`readTextFile`、`writeTextFile`、`writeTokens`、`writeLines`、`writeASTFile`、`writeRunInfo` 等目前只有声明，导致 `src/main.cpp` 不能完整链接成正式编译器。
-- [ ] 在 `Makefile` 中增加正式编译器目标，例如 `compiler` 或 `cminus`，把 `src/main.cpp`、词法、语法、IR、公共工具和 `third_part/compiler_ir` 一起编译，形成一条命令跑完整流程。
-- [ ] 检查并统一最终输出格式，尤其是 `token.txt` 和 `reduce.txt`，确保格式符合大作业文档中的 token 二元属性输出和规约序列输出要求。
+- [x] 补齐正式主程序依赖的工具函数实现：`parseArgs`、`stageToString`、`printHelp`、`readTextFile`、`writeTextFile`、`writeTokens`、`writeLines`、`writeASTFile`、`writeRunInfo` 等。
+- [x] 在 `Makefile` 中增加正式编译器目标 `c--compiler`，把 `src/main.cpp`、词法、语法、IR、公共工具和 `third_part/compiler_ir` 一起编译，形成一条命令跑完整流程。
+- [x] 检查并统一正式工具的最终输出格式，`token.txt` 使用大作业要求的 `单词<TAB><种别,属性>` 格式，`reduce.txt` 输出移进/规约序列。
 - [ ] 修复 `third_part/compiler_ir/include/IRbuilder.h` 中 `create_iand`、`create_ior` 目前错误调用 `create_sdiv` 的问题，否则 `&&` 和 `||` 生成的 LLVM IR 语义不正确。
 - [ ] 明确 `float` 的支持范围。当前词法和语法支持 `float` / `floatConst`，但 `src/ir/IRGenerator.cpp` 中浮点常量、浮点变量初始化、浮点运算和浮点返回值会报错；如果老师测试包含浮点，需要继续补 IR 生成。
 - [ ] 修正 `tests/samples/*_ok.sy` 中与当前规则冲突的样例，例如关键字不区分大小写时，`CONST` 会被识别为 `const` 关键字，不能作为普通标识符。

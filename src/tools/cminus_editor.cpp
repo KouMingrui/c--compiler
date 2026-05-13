@@ -1242,12 +1242,9 @@ private:
 
 } // namespace
 
-int main(int argc, char** argv) {
-    std::string path = "untitled.sy";
-    if (argc >= 2) {
-        path = argv[1];
-    }
+namespace cminus {
 
+int runEditor(const std::string& path) {
     std::setlocale(LC_ALL, "");
     initscr();
     raw();
@@ -1266,3 +1263,15 @@ int main(int argc, char** argv) {
     endwin();
     return 0;
 }
+
+} // namespace cminus
+
+#ifndef CMINUS_EDITOR_NO_MAIN
+int main(int argc, char** argv) {
+    std::string path = "untitled.sy";
+    if (argc >= 2) {
+        path = argv[1];
+    }
+    return cminus::runEditor(path);
+}
+#endif

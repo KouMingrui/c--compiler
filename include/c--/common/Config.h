@@ -8,6 +8,7 @@ enum class Stage {
     Lex,
     Parse,
     IR,
+    IDE,
     All
 };
 
