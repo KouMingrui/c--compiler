@@ -1071,7 +1071,7 @@ EOF     EndOfFile   EOF       EOF
 可以用临时测试命令运行词法分析：
 
 ```bash
-make run-lexer INPUT=tests/case1_ok/input.sy
+make run-lexer INPUT=tests/ok_001_minimal_return.sy
 ```
 
 输出文件：
@@ -1101,4 +1101,3 @@ make run-lexer INPUT=tests/case1_ok/input.sy
 | 单词符号输出 | `result.tokens` |
 | 错误信息列表 | `result.errorMessage` |
 | 状态转换图 | `automata.cpp` 中构造出的最小化 DFA |
-

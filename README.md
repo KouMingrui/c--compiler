@@ -27,7 +27,7 @@ C-- 支持：
 - `include/c--`：项目头文件。
 - `grammar`：文法文件。
 - `docs`：开发日志、AST 约定、架构说明等文档。
-- `tests`：测试输入和输出结果。
+- `tests`：测试样例和测试驱动程序，样例直接放在该目录下。
 - `third_part/compiler_ir`：课程提供的中端代码。
 
 ## 输出文件
@@ -64,16 +64,16 @@ build/c--compiler [lexer|parser|ir|ide|all] <file> [-o output_dir]
 如果不写模式，默认执行完整流程，也就是词法分析、语法分析、中间代码生成三个阶段：
 
 ```bash
-build/c--compiler tests/case1_ok/input.sy
+build/c--compiler tests/ok_001_minimal_return.sy
 ```
 
 常用模式：
 
 ```bash
-build/c--compiler lexer tests/case1_ok/input.sy -o output/lexer_case
-build/c--compiler parser tests/case1_ok/input.sy -o output/parser_case
-build/c--compiler ir tests/case1_ok/input.sy -o output/ir_case
-build/c--compiler ide tests/case1_ok/input.sy
+build/c--compiler lexer tests/ok_001_minimal_return.sy -o output/lexer_case
+build/c--compiler parser tests/ok_001_minimal_return.sy -o output/parser_case
+build/c--compiler ir tests/ok_001_minimal_return.sy -o output/ir_case
+build/c--compiler ide tests/ok_001_minimal_return.sy
 ```
 
 说明：
@@ -120,7 +120,7 @@ make all
 
 ### 运行词法分析
 
-默认输入是 `tests/case1_ok/input.sy`：
+默认输入是 `tests/ok_001_minimal_return.sy`：
 
 ```bash
 make run-lexer
@@ -129,7 +129,7 @@ make run-lexer
 指定输入文件：
 
 ```bash
-make run-lexer INPUT=tests/case1_ok/input.sy
+make run-lexer INPUT=tests/ok_001_minimal_return.sy
 ```
 
 输出默认写到：
@@ -163,13 +163,26 @@ make run-ir
 build/output.ll
 ```
 
+### 回归测试脚本
+
+规范测试样例直接放在 `tests/` 目录下，说明见 `tests/README.md`。可以用下面脚本批量测试：
+
+```bash
+scripts/run_samples.sh
+scripts/run_sample_lexer.sh
+scripts/run_sample_parser.sh
+scripts/run_sample_ir.sh
+```
+
+其中 `run_samples.sh` 会跑完整流程；后三个脚本分别测试词法、语法和 IR 阶段。
+
 ### 运行 C-- 命令行编辑器
 
 编辑器使用 `ncurses` 实现，界面左侧是代码编辑区，右侧上半部分实时显示词法分析结果，右侧下半部分实时显示语法分析结果。
 
 ```bash
 make editor
-make run-editor FILE=tests/case1_ok/input.sy
+make run-editor FILE=tests/ok_001_minimal_return.sy
 ```
 
 快捷键：
@@ -201,8 +214,7 @@ make clean-temp
 - [x] 检查并统一正式工具的最终输出格式，`token.txt` 使用大作业要求的 `单词<TAB><种别,属性>` 格式，`reduce.txt` 输出移进/规约序列。
 - [ ] 修复 `third_part/compiler_ir/include/IRbuilder.h` 中 `create_iand`、`create_ior` 目前错误调用 `create_sdiv` 的问题，否则 `&&` 和 `||` 生成的 LLVM IR 语义不正确。
 - [ ] 明确 `float` 的支持范围。当前词法和语法支持 `float` / `floatConst`，但 `src/ir/IRGenerator.cpp` 中浮点常量、浮点变量初始化、浮点运算和浮点返回值会报错；如果老师测试包含浮点，需要继续补 IR 生成。
-- [ ] 修正 `tests/samples/*_ok.sy` 中与当前规则冲突的样例，例如关键字不区分大小写时，`CONST` 会被识别为 `const` 关键字，不能作为普通标识符。
-- [ ] 补充覆盖完整必做功能的回归测试：全局/局部变量、常量、函数参数、函数调用、赋值、一元/二元/复合表达式、比较、`&&` / `||`、`if/else`、词法错误、语法错误和 IR 生成错误。
+- [x] 整理 `tests` 目录结构，将规范样例直接放在 `tests/` 下，并补充词法、语法、IR 和完整流程回归测试脚本。
 
 ## 注意事项
 
@@ -221,3 +233,10 @@ lhc: 词法分析
 yhn: 测试+撰写
 
 lzl: 测试+撰写
+
+
+## 后续拓展
+1. 注释功能
+2. 循环功能
+3. 输出语句
+4. 内嵌IR
